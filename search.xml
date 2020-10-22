@@ -1,11 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
 <search>
   <entry>
-    <title>mySQL的索引剖析</title>
-    <url>/2020/10/06/my-first-blog/</url>
-    <content><![CDATA[<h1 id="第一篇blog"><a href="#第一篇blog" class="headerlink" title="第一篇blog"></a>第一篇blog</h1>]]></content>
+    <title>mySQL-索引类型定义梳理</title>
+    <url>/2020/10/19/defineMySqlIndex/</url>
+    <content><![CDATA[<h1 id="一：InnoDB索引底层数据结构简略图"><a href="#一：InnoDB索引底层数据结构简略图" class="headerlink" title="一：InnoDB索引底层数据结构简略图"></a>一：InnoDB索引底层数据结构简略图</h1><p>1、InnoDB存储引擎主键索引实现：</p>
+<p><img src="C:\Users\wangyl\AppData\Roaming\Typora\typora-user-images\1603028738070.png" alt="1603028738070"></p>
+<p>2、InnoDB存储引擎二级索引实现：</p>
+<p><img src="C:\Users\wangyl\AppData\Roaming\Typora\typora-user-images\1603028910751.png" alt="1603028910751"></p>
+<p>3、联合索引树结构：</p>
+<p><img src="C:\Users\wangyl\AppData\Roaming\Typora\typora-user-images\1603380039268.png" alt="1603380039268"></p>
+<h1 id="二：聚簇索引"><a href="#二：聚簇索引" class="headerlink" title="二：聚簇索引"></a>二：聚簇索引</h1><h4 id="定义："><a href="#定义：" class="headerlink" title="定义："></a>定义：</h4><p>聚簇索引是一种数据存储方式，并不是一种单独的索引类型，在InnoDB中的聚簇索引定义的是 B+Tree索引和数据行 (叶子节点包含了完整的数据记录)</p>
+<p>注: InnoDB存储引擎，聚簇索引和主键索引结构和效果相同</p>
+<h4 id="优点-提升查询性能-："><a href="#优点-提升查询性能-：" class="headerlink" title="优点 (提升查询性能)："></a>优点 (提升查询性能)：</h4><p>1、可以根据索引字段聚集数据，每次从磁盘读取少量数据叶即可获得需要的绝大部分数据，<strong>减少了磁盘I/O次数</strong>，提升查询效率（利用<strong>磁盘预读原理</strong>：磁盘存取比主存慢，加上机械运动耗费，磁盘的存取速度一般是主存的几百分分之一，为了提高效率，要尽量减少磁盘I/O。为了达到这个目的，磁盘往往<strong>不是严格按需读取</strong>，而是每次都会预读，即使只需要一个字节，磁盘也会从这个位置开始，顺序向后读取一定长度的数据放入内存。这样做的理论依据是计算机科学中著名的<strong>局部性原理</strong>：当一个数据被用到时，其附近的数据也通常会马上被使用。程序运行期间所需要的数据通常比较集中）</p>
+<p>2、数据访问更快，聚簇索引将索引和数据保存在一个文件中（B+Tree），获取数据时，聚簇索引比非聚簇索引查找更快</p>
+<h4 id="缺点-客观存在-："><a href="#缺点-客观存在-：" class="headerlink" title="缺点 (客观存在)："></a>缺点 (客观存在)：</h4><p>1、强依赖于主键按顺序插入数据到InnoDB表中，即如果索引数据并未按顺序存储在磁盘页中，当数据加载到内存时，由于数据不连续，需要多次I/O并且把一些不需要的数据也放入内存，耗时，占用内存</p>
+<p>2、更新聚簇索引列的代价很高，因为会强制InnoDB将每个被更新的行移动到新的位置，可能造成不必要的叶分裂（当行的主键要求必须将这一行插入到某个已满的叶中时，InnoDB会将该叶分裂成两个页来存储该行，此为一次叶分裂操作）叶分裂会导致表占用更多的磁盘空间</p>
+<p>3、聚簇索引可能会导致全表查询慢，当行记录比较稀疏、零散时（叶分裂导致数据存储不连续）</p>
+<h1 id="三：覆盖索引"><a href="#三：覆盖索引" class="headerlink" title="三：覆盖索引"></a>三：覆盖索引</h1><h4 id="定义：-1"><a href="#定义：-1" class="headerlink" title="定义："></a>定义：</h4><p>如果一个索引包含（覆盖）所有需要查询的字段的值，即称之为 “覆盖索引”</p>
+<h4 id="优点-使用覆盖索引的好处"><a href="#优点-使用覆盖索引的好处" class="headerlink" title="优点 (使用覆盖索引的好处)"></a>优点 (使用覆盖索引的好处)</h4><p>1、减少数据的访问量，只需要读取索引，不需要回表查询（不需要从二级索引树查询到主键值再查询一边主键索引树）</p>
+<h1 id="四：主键索引"><a href="#四：主键索引" class="headerlink" title="四：主键索引"></a>四：主键索引</h1><h4 id="定义：-2"><a href="#定义：-2" class="headerlink" title="定义："></a>定义：</h4><p>一种特殊的唯一索引，不允许有空值，可以在建表的时候指定主键，默认就会创建主键索引，主键索引在InnoDB存储引擎下，可将主键索引定义为聚簇索引，具有覆盖所有的优点，底层所有结构为上述第一张图所示，主键索引树叶子节点包含了所有的行记录数据，</p>
+<p>注：如果没有定义主键，InnoDB会选择一个唯一的非空索引代替，如果没有这样的索引，InnoDB会隐式的定义一个主键作为聚簇索引</p>
+<h1 id="五：唯一索引"><a href="#五：唯一索引" class="headerlink" title="五：唯一索引"></a>五：唯一索引</h1><h4 id="定义：-3"><a href="#定义：-3" class="headerlink" title="定义："></a>定义：</h4><p>特殊的普通索引，索引列值必须唯一，允许有空值，如果是联合索引组合的，则列值的组合必须唯一。唯一索引树结构为上述的二级索引结构图，非叶子节点存储索引（唯一）,叶子节点存储索引和对应行记录的主键id</p>
+<h1 id="六：联合索引"><a href="#六：联合索引" class="headerlink" title="六：联合索引"></a>六：联合索引</h1><h4 id="定义：-4"><a href="#定义：-4" class="headerlink" title="定义："></a>定义：</h4><p>1、联合索引又称复合索引，是由数据表中的多个字段组合成的一个索引，简略图如上，联合索引在InnoDB存储引擎下，符合最左匹配原则：例如（A、B、C 三个字段，查询条件按照 A 或者 AB 或者 ABC 字段的顺序即可满足最左匹配），在对字段建立索引时，尽量考虑将单个字段索引，建立成联合索引，可提高查询效率</p>
+<p>2、联合索引的索引树，其树节点是又多个字段组合而成的</p>
+]]></content>
       <tags>
-        <tag>java mysql</tag>
+        <tag>mysql</tag>
       </tags>
   </entry>
 </search>
